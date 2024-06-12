@@ -92,9 +92,12 @@ if uploaded_file or example_data:
 
         # Encode categorical variables
         categorical_columns = df.select_dtypes(include=['object']).columns
-        encoder = OneHotEncoder(drop='first')
-        df_encoded = pd.DataFrame(encoder.fit_transform(df[categorical_columns]), columns=encoder.get_feature_names_out(categorical_columns))
-        df = pd.concat([df.drop(categorical_columns, axis=1), df_encoded], axis=1)
+        if len(categorical_columns) > 0:
+            encoder = OneHotEncoder(sparse=False, drop='first')
+            encoded_data = encoder.fit_transform(df[categorical_columns])
+            encoded_df = pd.DataFrame(encoded_data, columns=encoder.get_feature_names_out(categorical_columns))
+            df = df.drop(categorical_columns, axis=1).reset_index(drop=True)
+            df = pd.concat([df, encoded_df], axis=1)
 
         X = df.iloc[:,:-1]
         y = df.iloc[:,-1]
@@ -170,20 +173,22 @@ if uploaded_file or example_data:
         with test_col[1]:
             st.markdown('**y**')
             st.dataframe(y_test, height=210, hide_index=True, use_container_width=True)
-
-    # Zip dataset files
-    df.to_csv('dataset.csv', index=False)
-    X_train.to_csv('X_train.csv', index=False)
-    y_train.to_csv('y_train.csv', index=False)
-    X_test.to_csv('X_test.csv', index=False)
-    y_test.to_csv('y_test.csv', index=False)
     
-    list_files = ['dataset.csv', 'X_train.csv', 'y_train.csv', 'X_test.csv', 'y_test.csv']
-    with zipfile.ZipFile('dataset.zip', 'w') as zipF:
+    # Download dataset as ZIP file
+    import os
+    os.makedirs('/tmp', exist_ok=True)
+    df.to_csv('/tmp/dataset.csv', index=False)
+    X_train.to_csv('/tmp/X_train.csv', index=False)
+    y_train.to_csv('/tmp/y_train.csv', index=False)
+    X_test.to_csv('/tmp/X_test.csv', index=False)
+    y_test.to_csv('/tmp/y_test.csv', index=False)
+    
+    list_files = ['/tmp/dataset.csv', '/tmp/X_train.csv', '/tmp/y_train.csv', '/tmp/X_test.csv', '/tmp/y_test.csv']
+    with zipfile.ZipFile('/tmp/dataset.zip', 'w') as zipF:
         for file in list_files:
             zipF.write(file, compress_type=zipfile.ZIP_DEFLATED)
 
-    with open('dataset.zip', 'rb') as datazip:
+    with open('/tmp/dataset.zip', 'rb') as datazip:
         btn = st.download_button(
                 label='Download ZIP',
                 data=datazip,
@@ -221,15 +226,15 @@ if uploaded_file or example_data:
     st.header('Prediction results', divider='rainbow')
     s_y_train = pd.Series(y_train, name='actual').reset_index(drop=True)
     s_y_train_pred = pd.Series(y_train_pred, name='predicted').reset_index(drop=True)
-    df_train = pd.DataFrame(data=[s_y_train, s_y_train_pred], index=None).T
+    df_train = pd.DataFrame(data={'actual': s_y_train, 'predicted': s_y_train_pred})
     df_train['class'] = 'train'
         
     s_y_test = pd.Series(y_test, name='actual').reset_index(drop=True)
     s_y_test_pred = pd.Series(y_test_pred, name='predicted').reset_index(drop=True)
-    df_test = pd.DataFrame(data=[s_y_test, s_y_test_pred], index=None).T
+    df_test = pd.DataFrame(data={'actual': s_y_test, 'predicted': s_y_test_pred})
     df_test['class'] = 'test'
     
-    df_prediction = pd.concat([df_train, df_test], axis=0)
+    df_prediction = pd.concat([df_train, df_test], axis=0).reset_index(drop=True)
     
     prediction_col = st.columns((2, 0.2, 3))
     
