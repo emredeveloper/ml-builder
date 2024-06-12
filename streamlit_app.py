@@ -4,6 +4,7 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.preprocessing import OneHotEncoder
 import altair as alt
 import time
 import zipfile
@@ -13,24 +14,23 @@ st.set_page_config(page_title='ML Model Building', page_icon='🤖')
 st.title('🤖 ML Model Building')
 
 with st.expander('About this app'):
-  st.markdown('**What can this app do?**')
-  st.info('This app allow users to build a machine learning (ML) model in an end-to-end workflow. Particularly, this encompasses data upload, data pre-processing, ML model building and post-model analysis.')
+    st.markdown('**What can this app do?**')
+    st.info('This app allow users to build a machine learning (ML) model in an end-to-end workflow. Particularly, this encompasses data upload, data pre-processing, ML model building and post-model analysis.')
 
-  st.markdown('**How to use the app?**')
-  st.warning('To engage with the app, go to the sidebar and 1. Select a data set and 2. Adjust the model parameters by adjusting the various slider widgets. As a result, this would initiate the ML model building process, display the model results as well as allowing users to download the generated models and accompanying data.')
+    st.markdown('**How to use the app?**')
+    st.warning('To engage with the app, go to the sidebar and 1. Select a data set and 2. Adjust the model parameters by adjusting the various slider widgets. As a result, this would initiate the ML model building process, display the model results as well as allowing users to download the generated models and accompanying data.')
 
-  st.markdown('**Under the hood**')
-  st.markdown('Data sets:')
-  st.code('''- Drug solubility data set
-  ''', language='markdown')
-  
-  st.markdown('Libraries used:')
-  st.code('''- Pandas for data wrangling
-- Scikit-learn for building a machine learning model
-- Altair for chart creation
-- Streamlit for user interface
-  ''', language='markdown')
-
+    st.markdown('**Under the hood**')
+    st.markdown('Data sets:')
+    st.code('''- Drug solubility data set
+    ''', language='markdown')
+    
+    st.markdown('Libraries used:')
+    st.code('''- Pandas for data wrangling
+    - Scikit-learn for building a machine learning model
+    - Altair for chart creation
+    - Streamlit for user interface
+    ''', language='markdown')
 
 # Sidebar for accepting input parameters
 with st.sidebar:
@@ -89,6 +89,13 @@ if uploaded_file or example_data:
 
         st.write("Preparing data ...")
         time.sleep(sleep_time)
+
+        # Encode categorical variables
+        categorical_columns = df.select_dtypes(include=['object']).columns
+        encoder = OneHotEncoder(sparse=False, drop='first')
+        df_encoded = pd.DataFrame(encoder.fit_transform(df[categorical_columns]), columns=encoder.get_feature_names_out(categorical_columns))
+        df = pd.concat([df.drop(categorical_columns, axis=1), df_encoded], axis=1)
+
         X = df.iloc[:,:-1]
         y = df.iloc[:,-1]
             
@@ -129,14 +136,10 @@ if uploaded_file or example_data:
         st.write("Displaying performance metrics ...")
         time.sleep(sleep_time)
         parameter_criterion_string = ' '.join([x.capitalize() for x in parameter_criterion.split('_')])
-        #if 'Mse' in parameter_criterion_string:
-        #    parameter_criterion_string = parameter_criterion_string.replace('Mse', 'MSE')
         rf_results = pd.DataFrame(['Random forest', train_mse, train_r2, test_mse, test_r2]).transpose()
         rf_results.columns = ['Method', f'Training {parameter_criterion_string}', 'Training R2', f'Test {parameter_criterion_string}', 'Test R2']
-        # Convert objects to numerics
         for col in rf_results.columns:
             rf_results[col] = pd.to_numeric(rf_results[col], errors='ignore')
-        # Round to 3 digits
         rf_results = rf_results.round(3)
         
     status.update(label="Status", state="complete", expanded=False)
@@ -243,7 +246,5 @@ if uploaded_file or example_data:
                   )
         st.altair_chart(scatter, theme='streamlit', use_container_width=True)
 
-    
-# Ask for CSV upload if none is detected
 else:
     st.warning('👈 Upload a CSV file or click *"Load example data"* to get started!')
