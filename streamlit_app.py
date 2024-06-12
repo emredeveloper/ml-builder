@@ -92,7 +92,7 @@ if uploaded_file or example_data:
 
         # Encode categorical variables
         categorical_columns = df.select_dtypes(include=['object']).columns
-        encoder = OneHotEncoder(sparse=False, drop='first')
+        encoder = OneHotEncoder(drop='first')
         df_encoded = pd.DataFrame(encoder.fit_transform(df[categorical_columns]), columns=encoder.get_feature_names_out(categorical_columns))
         df = pd.concat([df.drop(categorical_columns, axis=1), df_encoded], axis=1)
 
